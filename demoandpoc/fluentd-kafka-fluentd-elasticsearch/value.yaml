@@ -1,0 +1,22 @@
+replicaCount: 3
+externalAccess:
+  enabled: true
+  service:
+    type: LoadBalancer
+    ports:
+      external: 9094
+    loadBalancerNames:
+      - internal-a35866f5ce3e141fdb283789885bb24d-1646611574.ap-southeast-1.elb.amazonaws.com
+      - internal-aa252ff75d6814b92a7f600693dedb01-2078365334.ap-southeast-1.elb.amazonaws.com
+      - internal-a24f37d434cae4b52802b3cce12f1967-590025778.ap-southeast-1.elb.amazonaws.com
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+      service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: tcp
+      service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+persistence:
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  enabled: true
+  size: 32Gi
