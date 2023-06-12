@@ -1,0 +1,164 @@
+exporters:
+  clickhouselogsexporter:
+    dsn: tcp://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/?username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_elapsed_time: 300s
+      max_interval: 30s
+    sending_queue:
+      queue_size: 100
+    timeout: 10s
+  clickhousemetricswrite:
+    endpoint: tcp://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/?database=${CLICKHOUSE_DATABASE}&username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}
+    resource_to_telemetry_conversion:
+      enabled: true
+  clickhousetraces:
+    datasource: tcp://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/?database=${CLICKHOUSE_TRACE_DATABASE}&username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}
+    low_cardinal_exception_grouping: ${LOW_CARDINAL_EXCEPTION_GROUPING}
+  prometheus:
+    endpoint: 0.0.0.0:8889
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: localhost:1777
+  zpages:
+    endpoint: localhost:55679
+processors:
+  batch:
+    send_batch_size: 50000
+    timeout: 1s
+  k8sattributes:
+    extract:
+      metadata:
+      - k8s.namespace.name
+      - k8s.pod.name
+      - k8s.pod.uid
+      - k8s.pod.start_time
+      - k8s.deployment.name
+      - k8s.node.name
+    filter:
+      node_from_env_var: K8S_NODE_NAME
+    passthrough: false
+    pod_association:
+    - sources:
+      - from: resource_attribute
+        name: k8s.pod.ip
+    - sources:
+      - from: resource_attribute
+        name: k8s.pod.uid
+    - sources:
+      - from: connection
+  memory_limiter: null
+  resourcedetection:
+    detectors:
+    - env
+    - system
+    system:
+      hostname_sources:
+      - dns
+      - os
+    timeout: 2s
+  signozspanmetrics/prometheus:
+    dimensions:
+    - default: default
+      name: service.namespace
+    - default: default
+      name: deployment.environment
+    - name: signoz.collector.id
+    dimensions_cache_size: 100000
+    latency_histogram_buckets:
+    - 100us
+    - 1ms
+    - 2ms
+    - 6ms
+    - 10ms
+    - 50ms
+    - 100ms
+    - 250ms
+    - 500ms
+    - 1000ms
+    - 1400ms
+    - 2000ms
+    - 5s
+    - 10s
+    - 20s
+    - 40s
+    - 60s
+    metrics_exporter: prometheus
+receivers:
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu: {}
+      disk: {}
+      filesystem: {}
+      load: {}
+      memory: {}
+      network: {}
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 0.0.0.0:4318
+  otlp/spanmetrics:
+    protocols:
+      grpc:
+        endpoint: localhost:12345
+service:
+  extensions:
+  - health_check
+  - zpages
+  pipelines:
+    logs:
+      exporters:
+      - clickhouselogsexporter
+      processors:
+      - k8sattributes
+      - batch
+      receivers:
+      - otlp
+    metrics:
+      exporters:
+      - clickhousemetricswrite
+      processors:
+      - k8sattributes
+      - batch
+      receivers:
+      - otlp
+    metrics/generic:
+      exporters:
+      - clickhousemetricswrite
+      processors:
+      - resourcedetection
+      - k8sattributes
+      - batch
+      receivers:
+      - hostmetrics
+    metrics/spanmetrics:
+      exporters:
+      - prometheus
+      receivers:
+      - otlp/spanmetrics
+    traces:
+      exporters:
+      - clickhousetraces
+      processors:
+      - signozspanmetrics/prometheus
+      - k8sattributes
+      - batch
+      receivers:
+      - jaeger
+      - otlp
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888

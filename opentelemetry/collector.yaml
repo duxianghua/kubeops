@@ -1,0 +1,33 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+# processors:
+#   memory_limiter:
+#     check_interval: 1s
+#     limit_percentage: 75
+#     spike_limit_percentage: 15
+#   batch:
+#     send_batch_size: 10000
+#     timeout: 10s
+exporters:
+  logging:
+  prometheus:
+    endpoint: '0.0.0.0:9115'
+    const_labels:
+      label1: value1
+    send_timestamps: true
+    metric_expiration: 1m
+    resource_to_telemetry_conversion:
+      enabled: true
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: []
+      exporters: [logging]
+    metrics:
+      receivers: [otlp]
+      processors: []
+      exporters: [logging,prometheus]

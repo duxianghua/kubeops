@@ -1,0 +1,19 @@
+apiVersion: k6.io/v1alpha1
+kind: K6
+metadata:
+  name: k6-sample
+  namespace: k6-operator-system
+spec:
+  parallelism: 4
+  script:
+    configMap:
+      name: k6-sample-configmap
+      file: test.js
+  arguments: -o xk6-prometheus-rw
+  runner:
+    image: xingba/k6:v0.0.8-with-prometheus
+    env:
+      - name: K6_PROMETHEUS_RW_SERVER_URL
+        value: https://prometheus.svc/api/v1/write
+      - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+        value: "true"

@@ -1,0 +1,36 @@
+# https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-exporter
+spec:
+  schedule: "1 */3 * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      ttlSecondsAfterFinished: 3600
+      template:
+        spec:
+          containers:
+          - name: otel-redis-exporter
+            image: python:3.9.14
+            args: 
+              - '/bin/sh'
+              - '-c' 
+              - 'pip install opentelemetry-api && pip install opentelemetry-sdk && pip install opentelemetry-exporter-otlp && pip install redis && python /data/redis_exporter.py'
+            env:
+              - name:  OTEL_SERVICE_NAME
+                value: redis-service.cache.amazonaws.com
+              - name:  REDIS_HOST
+                value: redis-service.cache.amazonaws.com
+              - name:  OTEL_EXPORTER_OTLP_ENDPOINT
+                value: https://collector.otlp
+            volumeMounts:
+              - mountPath: /data
+                name: redis-exporter
+          restartPolicy: Never
+          volumes:
+            - name: redis-exporter
+              configMap:
+                name: redis-exporter
+---

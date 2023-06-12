@@ -1,0 +1,6 @@
+.terraform
+k6-operator
+keptn/examples
+.venv
+/eks
+opentelemetry/python
